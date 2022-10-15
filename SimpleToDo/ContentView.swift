@@ -54,6 +54,47 @@ struct ContentView: View {
         
     }
     
+    private func styleForPriority(_ value: String) -> Color {
+        let priority = Priority(rawValue: value)
+            switch priority {
+                case .low:
+                    return Color.green
+                
+                case .medium:
+                    return Color.orange
+                
+                case .high:
+                    return Color.red
+                
+                default:
+                    return Color.black
+            }
+        
+    }
+    
+    private func updateTask(_ task: Task) {
+        task.isFavorite = !task.isFavorite
+        
+        do {
+            try viewContext.save()
+        } catch {
+            print(error.localizedDescription)
+        }
+    }
+    
+    private func deleteTask(at offsets: IndexSet) {
+        offsets.forEach { index in
+            let task = allTasks[index]
+            viewContext.delete(task)
+            
+            do {
+                try viewContext.save()
+            } catch {
+                print(error.localizedDescription)
+            }
+        }
+    }
+    
     var body: some View {
         NavigationView {
             VStack {
@@ -64,8 +105,9 @@ struct ContentView: View {
                         Text(priority.title).tag(priority)
                     }
                 }.pickerStyle(.segmented)
-                
+          
                 Spacer()
+                    .frame(height: 20)
                 
                 Button("Save") {
                     saveTask()
@@ -76,7 +118,23 @@ struct ContentView: View {
                 .foregroundColor(.white)
                 .clipShape(RoundedRectangle(cornerRadius: 10.0, style: .continuous))
                 
-                
+                List {
+                    ForEach(allTasks) { task in
+                        HStack {
+                            Circle()
+                                .fill(styleForPriority(task.priority!))
+                                .frame(width: 15, height: 15)
+                            Spacer().frame(width: 20)
+                            Text(task.title ?? "")
+                            Spacer()
+                            Image(systemName: task.isFavorite ? "heart.fill": "heart")
+                                .foregroundColor(.red)
+                                .onTapGesture {
+                                    updateTask(task)
+                                }
+                        }
+                    }.onDelete(perform: deleteTask)
+                }
             }
             .padding()
             .navigationTitle("All Task 🏗")
@@ -86,6 +144,10 @@ struct ContentView: View {
 
 struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
-        ContentView()
+        let persistentContainer = CoreDataManager.shared.persistantContainer
+        
+        ContentView().environment(\.managedObjectContext, persistentContainer.viewContext)
+    
+
     }
 }
